@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+table{
+    border-collapse: collapse;
+    border: 1px solid black;
+  }
+  table th{
+  	padding: 5px;
+    font-weight: bold;    
+  	border: 1px solid black;
+  }
+  table td{
+  	padding: 5px;    
+  	border: 1px solid black;
+  }
+</style>
+</head>
+<body>
+</body>
+
+<h2>Introduction</h2>
+<p>
+This program allows to test OpenCV stereo vision capabilities. You can rectify camera, create disparity map and test depth map creation from static stereo image or stereo camera pair directly. Program is controlled with config.properies file. See common section in below description how to configure global parameters.
+It runs with 4 modes, which can be combined with using bit OR (int this case just add mode numbers):
+<ul>
+	<li>1 - Capturing chessboard from stereo camera pair</li>
+	<li>2 - Preparing camera rectification, it uses chessboard images captured during mode 1 run</li>
+	<li>4 - Testing with image pair, displayed GUI corresponse to Disparity Map section within configuration description</li>
+	<li>8 - Testing with captured images from the camera pair, it should be used exclusively with mode 3</li>
+</ul>
+<p>Default run mode set in config.properies (1+2) is good to create rectification matrices, which further modes don't work without</p>
+</p>
+
+<h2>Hardware</h2>
+<p>To use program you need stereo camera pair. I used two USB webcams that was glued to stable basic as it is visible in the image below. I used two Canon Live! Cam Sync HD VF0770 (about 15&euro / 20$ each one) mainly to be sure that Raspberry Pi supports it as a part of other project. Problem was pretty large noise what impacted disparity. More advanced hardware should give better results.</p>
+<p>The distance between cameras was about 8cm. It is not necessary to put them ideally aligned, it is task for rectification stage</p>
+</p>
+<div style="text-align: center;">
+<img src="img/cam1.png" style="width: 30%"></img>
+<img src="img/cam2.png" style="width: 30%"></img>
+</div>
+
+<h2>How to run</h2>
+
+<h4>Run mode 1 - chessboard capture</h4>
+<p>When you will start the program, two images from both cameras are visible and a little window with number counting to 0. When 0 is reached, then shapshots are taken from left and right camera. If the chessboard was detected successfully the circle next to the number will keep green, red if no chessboard was detected.</p>
+<p>Take about 30 - 50 successful pairs (you can resume capturing when overwriteImages is set to 0) changing chessboard orientation, angle and distance. After that press escape to go to the next stage.</p>
+<div style="text-align: center;">
+<img src="img/scr1.png" style="width: 30%"></img>
+<img src="img/scr2.png" style="width: 30%"></img>
+<p></p>
+<img src="img/scr3.png" style="width: 30%"></img>
+<img src="img/scr4.png" style="width: 30%"></img>
+</div>
+
+<h4>Run mode 2 - rectification</h4>
+<p>Using taken stereo image pairs the algorithm will try to make rectification transformations. It can take a couple of minutes.</p>
+<p>After finish, the result is: </p>
+<ul>
+ <li>extrinsics.yml - camera extrinsics</li>
+ <li>intrinsics.yml - camera intrinsics</li>
+ <li>remap.yml - transformation used to rectify camera images applied to regular camera input</li>
+ <li>Q.yml - matrix to remap disparity map to 3D</li>
+</ul>
+<p>The console output contains also rectification error - the less the better. 
+<div style="text-align: center;">
+<img src="img/scr5_rectified.png" style="width: 30%"></img>
+<img src="img/scr6_rectified.png" style="width: 30%"></img>
+<p>
+Rectified
+</p>
+<img src="img/scr7_notrectified.png" style="width: 30%"></img>
+<img src="img/scr8_notrectified.png" style="width: 30%"></img>
+<p>
+Before rectification
+</p>
+</div>
+
+<h4>Run mode 4 and 8 - testing disparity and depth map</h4>
+<p>Mode 3 allows to test static image pair (see common configuration below), 4 captures images from the camera pair.
+ For mode 3 these images should also be taken from this camera pair (rectification), it is useful to make initial tuning and see little details.</p>
+<p>While running these modes you will see some windows</p>
+<ul>
+ <li>Configuration - corrensponding to "Disparity map" section in configuration description paragraph</li>
+ <li>Disparity</li>
+ <li>Depth</li>
+ <li>OpenGL 3D representation of reconstructed scene</li>
+</ul> 
+<p>You have two alghoritms to test</p>
+<ul>
+ <li>SBM - faster, but less accurate</li>
+ <li>SGBM - better, but slower</li>
+</ul>
+<p>When you find good configuration press ENTER to update the config</p>
+<p>The center of image on "Depth" window is used to calculate minimal distance to objects in this area. Units used are the same as passed in fieldSize parametes (e.g if your chessboard tile is 2cm width and you set it to 2, you will get it in centimeters).</p>
+<p>To observe 3D reconstruction use arrow and W,S,A,D keys</p>
+<div style="text-align: center;">
+<img src="img/scr9.png" style="width: 70%"></img>
+<p>Example tuning</p>
+<img src="img/scr10.png" style="width: 70%"></img>
+<p>Example tuning</p>
+</div>
+<h2>Tips and observations</h2>
+<ul>
+ <li>Until you create rectification matrices, don't set run mode 3 and 4 in the config</li>
+ <li>Set up left and right camera indices properly, it depends on USB port connection (for 2 USB webcams)</li>
+ <li>Make sure that captured scene is good lit for capturing chessboard</li>
+ <li>Run mode 2 only runs, if at least some valid chessboard pair is captured. See the output directory</li>
+ <li>Run mode 1, 2 together and either 4 or 8 is recommended, don't use first two and testing modes</li>
+ <li>Tuning camera parameters (exposure, resolution, frame per secons) also allowed to get better results</li>
+ <li>Heterogenous background is better than large homogenous surface</li> 
+ <li>Using Contrib module filter improves results significally</li>
+ <li>Gauss filter kernel size parameter helps with noise</li>
+ <li>Tuning extrinsics and intrinsics separatelly resulted in much better result, see the code</li>
+ <li>Major problem during real time depth map creation was camera noise. It may be a hardware issue, some filter could help there, but ins't implemented now.</li> 
+</ul>
+
+<h2>Configuration</h2>
+<h4>Common</h4>
+<table style="border-width: 1px">	
+		<tr><th>Name</th><th>Default value</th><th>Description</th></tr>
+		<tr><td>logLevel</td><td>INFO</td><td>Logging verbosity: ERROR, INFO, DEBUG</td></tr>
+		<tr><td>overwriteImages</td><td>1</td><td>if true every checboard detection stage will overwrite previous run (it will be backuped)</td></tr>
+		<tr><td>runMode</td><td>8</td><td>bit OR of run modes: 1-chessboard detect, 2-calibration, 4-test with static image pair, 8-test with camera</td></tr>	
+		<tr><td>leftTestImage</td><td>images/left_001.ppm</td><td>Left test image to create disparity map (run mode 4)</td></tr>
+		<tr><td>rightTestImage</td><td>images/right_001.ppm</td><td>Right test image to create disparity map (run mode 4)</td></tr>
+</table>
+
+<h4>Chessboard creation</h4>
+<table>
+		<tr><th>Name</th><th>Default value</th><th>Description</th></tr>
+		<tr><td>boardWidth</td><td>9</td><td>Horizontal number of chessboard fields - 1, for 10x10 it is 9</td></tr>
+		<tr><td>boardHeight</td><td>6</td><td>vertical number of chessboard fields - 1, for 10x10 it is 9</td></tr>
+		<tr><td>fieldSize</td><td>1.8</td><td>chessboard field size (any unit, may be cm)</td></tr>
+		<tr><td>leftCamId</td><td>1</td><td>Index of left camera of stereo pair</td></tr>
+		<tr><td>rightCamId</td><td>0</td><td>Index of right camera of stereo pair</td></tr>
+		<tr><td>captureWidth</td><td>0</td><td>For chessboard detection, 0 - using current resolution, remember to update remapWidth and remapHeight properly</td></tr>
+		<tr><td>captureHeight</td><td>0</td><td>For chessboard detection</td></tr>
+		<tr><td>chessboardImagesDir</td><td>outimages/chessboards6</td><td>Directory where are saved latest detected chessboards</td></tr>
+		<tr><td>chessboardSleep</td><td>5</td><td>Seconds between taking chessboard photo</td></tr>
+		<tr><td>remapWidth</td><td>640</td><td>Width of remap matrices - the same as image width to be used with</td></tr>
+		<tr><td>remapHeight</td><td>480</td><td>Remap height of final resolution</td></tr>
+		<tr><td>show3d</td><td>1</td><td>1 to show remapped disparity map to 3d</td></tr>
+	</tr>
+</table>
+
+<h4>Disparity map</h4>
+<table>
+		<tr><th>Name</th><th>Default value</th><th>Description</th></tr>
+		<tr><td>algorithm</td><td>0</td><td>0-SBM, 1-SGBM</td></tr>
+		<tr><td>nDispMult16</td><td>7</td><td>nDispMult16*16 = num disparity [1,20]</td></tr>
+		<tr><td>blockSize</td><td>7</td><td>SADWIndowSize/block size [3, 79]</td></tr>
+		<tr><td>uniquenesRatio</td><td>1</td><td>sbm/sgbm [0, 45]</td></tr>
+		<tr><td>preFilterCap</td><td>16</td><td>sbm/sgbm [0, 63]</td></tr>
+		<tr><td>disparityFiltering</td><td>1</td><td>[0-off, 1-on], needs Contrib modules</td></tr>
+		<tr><td>disparityFilteringLambda</td><td>8350</td><td>[1, 15000], 8000 typically</td></tr>
+		<tr><td>disparityFilteringSigma</td><td>1060</td><td>[1, 5000], 800-2000 typically</td></tr>
+		<tr><td>smoothKernelSize</td><td>21</td><td>Gauss filter camera image, odd number</td></tr>
+		<tr><td>disp12MaxDiff</td><td>22</td><td>sbm/sgbm [0, 45]</td></tr>
+		<tr><td>minDisparity</td><td>0</td><td>sbm/sgbm [0, 151]</td></tr>
+		<tr><td>minDispeckleWindowSizesparity</td><td>104</td><td>sbm/sgbm [0, 600]</td></tr>
+		<tr><td>speckleRangeMult16</td><td>2</td><td>sbm/sgbm speckleRangeMult16*16=specleRange [0, 10]</td></tr>
+		<tr><td>sbmPreFilterSize</td><td>15</td><td>[5,255]</td></tr>
+		<tr><td>sbmFilterType</td><td>0</td><td>0-PREFILTER_NORMALIZED_RESPONSE, 1-PREFILTER_XSOBEL</td></tr>
+		<tr><td>sbmSmallerBlockSize</td><td>1</td><td>[0,151]</td></tr>
+		<tr><td>sbmTextureThreshold</td><td>5</td><td>[0,151]</td></tr>
+		<tr><td>sgbmP1</td><td>604</td><td>[0, 3000], good approx.: 8*number_of_image_channels*SADWindowSize*SADWindowSize</td></tr>
+		<tr><td>sgbmP2</td><td>1967</td><td>[0, 3000], good approx.: 32*number_of_image_channels*SADWindowSize*SADWindowSize</td></tr>
+		<tr><td>sgbmMode</td><td>0</td><td>0-MODE_SGBM, 1-MODE_HH, 2-MODE_SGBM_3WAY</td></tr>
+</table>
+
+</html>
